@@ -17,6 +17,7 @@ export default function Chat() {
     id: string;
     otherUserName: string;
     otherUserId: string;
+    otherUserAvatar?: string | null;
   } | null>(null);
   const [showSearch, setShowSearch] = useState(false);
 
@@ -64,11 +65,12 @@ export default function Chat() {
     }
   };
 
-  const handleSelectConversation = (conversationId: string, otherUserName: string, otherUserId: string) => {
+  const handleSelectConversation = (conversationId: string, otherUserName: string, otherUserId: string, otherUserAvatar?: string | null) => {
     setSelectedConversation({
       id: conversationId,
       otherUserName,
       otherUserId,
+      otherUserAvatar,
     });
   };
 
@@ -161,6 +163,7 @@ export default function Chat() {
               conversationId={selectedConversation.id}
               otherUserName={selectedConversation.otherUserName}
               otherUserId={selectedConversation.otherUserId}
+              otherUserAvatar={selectedConversation.otherUserAvatar}
               onBack={handleBack}
             />
           ) : (

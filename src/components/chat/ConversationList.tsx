@@ -13,12 +13,13 @@ interface Conversation {
     id: string;
     display_name: string;
     email: string;
+    avatar_url?: string | null;
   };
 }
 
 interface ConversationListProps {
   selectedId: string | null;
-  onSelect: (conversationId: string, otherUserName: string, otherUserId: string) => void;
+  onSelect: (conversationId: string, otherUserName: string, otherUserId: string, otherUserAvatar?: string | null) => void;
 }
 
 export default function ConversationList({ selectedId, onSelect }: ConversationListProps) {
@@ -46,7 +47,7 @@ export default function ConversationList({ selectedId, onSelect }: ConversationL
             const otherUserId = conv.participant_1 === user.id ? conv.participant_2 : conv.participant_1;
             const { data: profile } = await supabase
               .from('profiles')
-              .select('id, display_name, email')
+              .select('id, display_name, email, avatar_url')
               .eq('id', otherUserId)
               .maybeSingle();
             
@@ -117,15 +118,19 @@ export default function ConversationList({ selectedId, onSelect }: ConversationL
       {conversations.map((conv) => (
         <button
           key={conv.id}
-          onClick={() => onSelect(conv.id, conv.other_user?.display_name || 'Unknown', conv.other_user?.id || '')}
+          onClick={() => onSelect(conv.id, conv.other_user?.display_name || 'Unknown', conv.other_user?.id || '', conv.other_user?.avatar_url)}
           className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
             selectedId === conv.id
               ? 'bg-primary/10'
               : 'hover:bg-secondary'
           }`}
         >
-          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <User className="w-6 h-6 text-primary" />
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
+            {conv.other_user?.avatar_url ? (
+              <img src={conv.other_user.avatar_url} alt={conv.other_user.display_name} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-6 h-6 text-primary" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between">

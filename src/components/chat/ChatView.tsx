@@ -18,10 +18,11 @@ interface ChatViewProps {
   conversationId: string;
   otherUserName: string;
   otherUserId: string;
+  otherUserAvatar?: string | null;
   onBack: () => void;
 }
 
-export default function ChatView({ conversationId, otherUserName, otherUserId, onBack }: ChatViewProps) {
+export default function ChatView({ conversationId, otherUserName, otherUserId, otherUserAvatar, onBack }: ChatViewProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -179,8 +180,12 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative">
-          <User className="w-5 h-5 text-primary" />
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative overflow-hidden shrink-0">
+          {otherUserAvatar ? (
+            <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover" />
+          ) : (
+            <User className="w-5 h-5 text-primary" />
+          )}
           <span
             className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
               isOnline ? 'bg-green-500' : 'bg-muted-foreground/50'
