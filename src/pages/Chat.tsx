@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,12 @@ import { useToast } from '@/hooks/use-toast';
 import UserSearch from '@/components/chat/UserSearch';
 import ConversationList from '@/components/chat/ConversationList';
 import ChatView from '@/components/chat/ChatView';
-import { Shield, LogOut, Search, MessageSquare, X } from 'lucide-react';
+import { Shield, LogOut, Search, MessageSquare, X, User } from 'lucide-react';
 
 export default function Chat() {
   const { user, loading, signOut } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [selectedConversation, setSelectedConversation] = useState<{
     id: string;
     otherUserName: string;
@@ -101,6 +102,14 @@ export default function Chat() {
             className="text-muted-foreground hover:text-foreground"
           >
             {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/profile')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <User className="w-5 h-5" />
           </Button>
           <Button
             variant="ghost"
