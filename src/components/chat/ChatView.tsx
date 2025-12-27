@@ -222,9 +222,9 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
                     </p>
                     {isSent && (
                       msg.read_at ? (
-                        <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
+                        <CheckCheck className="w-3.5 h-3.5 text-primary" />
                       ) : (
-                        <CheckCheck className="w-3.5 h-3.5 text-foreground/60" />
+                        <Check className="w-3.5 h-3.5 text-foreground/60" />
                       )
                     )}
                   </div>
