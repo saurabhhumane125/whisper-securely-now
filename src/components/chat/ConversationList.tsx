@@ -18,7 +18,7 @@ interface Conversation {
 
 interface ConversationListProps {
   selectedId: string | null;
-  onSelect: (conversationId: string, otherUserName: string) => void;
+  onSelect: (conversationId: string, otherUserName: string, otherUserId: string) => void;
 }
 
 export default function ConversationList({ selectedId, onSelect }: ConversationListProps) {
@@ -117,7 +117,7 @@ export default function ConversationList({ selectedId, onSelect }: ConversationL
       {conversations.map((conv) => (
         <button
           key={conv.id}
-          onClick={() => onSelect(conv.id, conv.other_user?.display_name || 'Unknown')}
+          onClick={() => onSelect(conv.id, conv.other_user?.display_name || 'Unknown', conv.other_user?.id || '')}
           className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
             selectedId === conv.id
               ? 'bg-primary/10'
