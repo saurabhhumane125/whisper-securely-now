@@ -3,9 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Send, ArrowLeft, User, Check, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
 interface Message {
   id: string;
   sender_id: string;
@@ -29,6 +29,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -180,7 +181,10 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative overflow-hidden shrink-0">
+        <div 
+          className={`w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative overflow-hidden shrink-0 ${otherUserAvatar ? 'cursor-pointer' : ''}`}
+          onClick={() => otherUserAvatar && setAvatarOpen(true)}
+        >
           {otherUserAvatar ? (
             <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover" />
           ) : (
@@ -192,6 +196,19 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
             }`}
           />
         </div>
+
+        {/* Avatar Dialog */}
+        <Dialog open={avatarOpen} onOpenChange={setAvatarOpen}>
+          <DialogContent className="max-w-md p-0 overflow-hidden bg-transparent border-none">
+            {otherUserAvatar && (
+              <img 
+                src={otherUserAvatar} 
+                alt={otherUserName} 
+                className="w-full h-auto rounded-lg object-contain max-h-[80vh]"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
         <div>
           <p className="font-medium text-foreground">{otherUserName}</p>
           <p className="text-xs text-muted-foreground">
