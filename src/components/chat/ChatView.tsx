@@ -17,15 +17,17 @@ interface Message {
 interface ChatViewProps {
   conversationId: string;
   otherUserName: string;
+  otherUserId: string;
   onBack: () => void;
 }
 
-export default function ChatView({ conversationId, otherUserName, onBack }: ChatViewProps) {
+export default function ChatView({ conversationId, otherUserName, otherUserId, onBack }: ChatViewProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -35,6 +37,39 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Track presence
+  useEffect(() => {
+    if (!user || !conversationId) return;
+
+    const presenceChannel = supabase.channel(`presence-${conversationId}`);
+
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState();
+        const onlineUsers = Object.values(state).flat();
+        setIsOnline(onlineUsers.some((u) => (u as { user_id?: string }).user_id === otherUserId));
+      })
+      .on('presence', { event: 'join' }, ({ newPresences }) => {
+        if (newPresences.some((p) => (p as { user_id?: string }).user_id === otherUserId)) {
+          setIsOnline(true);
+        }
+      })
+      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+        if (leftPresences.some((p) => (p as { user_id?: string }).user_id === otherUserId)) {
+          setIsOnline(false);
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await presenceChannel.track({ user_id: user.id, online_at: new Date().toISOString() });
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(presenceChannel);
+    };
+  }, [user, conversationId, otherUserId]);
 
   // Mark messages as read when conversation is opened or new messages arrive
   useEffect(() => {
@@ -144,11 +179,19 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
         >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center relative">
           <User className="w-5 h-5 text-primary" />
+          <span
+            className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-card ${
+              isOnline ? 'bg-green-500' : 'bg-muted-foreground/50'
+            }`}
+          />
         </div>
         <div>
           <p className="font-medium text-foreground">{otherUserName}</p>
+          <p className="text-xs text-muted-foreground">
+            {isOnline ? 'Online' : 'Offline'}
+          </p>
         </div>
       </div>
 

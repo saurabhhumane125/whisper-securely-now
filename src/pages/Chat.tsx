@@ -15,6 +15,7 @@ export default function Chat() {
   const [selectedConversation, setSelectedConversation] = useState<{
     id: string;
     otherUserName: string;
+    otherUserId: string;
   } | null>(null);
   const [showSearch, setShowSearch] = useState(false);
 
@@ -49,6 +50,7 @@ export default function Chat() {
       setSelectedConversation({
         id: data,
         otherUserName: displayName,
+        otherUserId: userId,
       });
       setShowSearch(false);
     } catch (err) {
@@ -61,10 +63,11 @@ export default function Chat() {
     }
   };
 
-  const handleSelectConversation = (conversationId: string, otherUserName: string) => {
+  const handleSelectConversation = (conversationId: string, otherUserName: string, otherUserId: string) => {
     setSelectedConversation({
       id: conversationId,
       otherUserName,
+      otherUserId,
     });
   };
 
@@ -148,6 +151,7 @@ export default function Chat() {
             <ChatView
               conversationId={selectedConversation.id}
               otherUserName={selectedConversation.otherUserName}
+              otherUserId={selectedConversation.otherUserId}
               onBack={handleBack}
             />
           ) : (
