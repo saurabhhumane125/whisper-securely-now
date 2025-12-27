@@ -59,6 +59,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          read_at: string | null
           sender_id: string
         }
         Insert: {
@@ -66,6 +67,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          read_at?: string | null
           sender_id: string
         }
         Update: {
@@ -73,6 +75,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          read_at?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -121,6 +124,10 @@ export type Database = {
       find_or_create_conversation: {
         Args: { other_user_id: string }
         Returns: string
+      }
+      mark_messages_read: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
       }
       search_users: {
         Args: { search_query: string }

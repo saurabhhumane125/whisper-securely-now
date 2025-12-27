@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, ArrowLeft, User } from 'lucide-react';
+import { Send, ArrowLeft, User, Check, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Message {
@@ -11,6 +11,7 @@ interface Message {
   sender_id: string;
   content: string;
   created_at: string;
+  read_at: string | null;
 }
 
 interface ChatViewProps {
@@ -35,6 +36,17 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
     scrollToBottom();
   }, [messages]);
 
+  // Mark messages as read when conversation is opened or new messages arrive
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const markAsRead = async () => {
+      await supabase.rpc('mark_messages_read', { p_conversation_id: conversationId });
+    };
+
+    markAsRead();
+  }, [conversationId, user, messages]);
+
   useEffect(() => {
     if (!conversationId) return;
 
@@ -55,7 +67,7 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
 
     fetchMessages();
 
-    // Subscribe to new messages
+    // Subscribe to new messages and updates
     const channel = supabase
       .channel(`messages-${conversationId}`)
       .on(
@@ -68,6 +80,22 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === (payload.new as Message).id ? (payload.new as Message) : msg
+            )
+          );
         }
       )
       .subscribe();
@@ -145,9 +173,18 @@ export default function ChatView({ conversationId, otherUserName, onBack }: Chat
               >
                 <div className={`max-w-[75%] ${isSent ? 'message-bubble-sent' : 'message-bubble-received'}`}>
                   <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                  <p className={`text-xs mt-1 ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
-                    {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                  </p>
+                  <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : ''}`}>
+                    <p className={`text-xs ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
+                      {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                    </p>
+                    {isSent && (
+                      msg.read_at ? (
+                        <CheckCheck className="w-3.5 h-3.5 text-primary" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 text-foreground/60" />
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             );
