@@ -209,6 +209,10 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
         ) : (
           messages.map((msg) => {
             const isSent = msg.sender_id === user?.id;
+            // For sent messages: single tick = sent, double tick = delivered (always shown since it reached DB), blue double tick = read
+            // For received messages: show the same status indicators
+            const isRead = !!msg.read_at;
+            
             return (
               <div
                 key={msg.id}
@@ -220,12 +224,10 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
                     <p className={`text-xs ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </p>
-                    {isSent && (
-                      msg.read_at ? (
-                        <CheckCheck className="w-3.5 h-3.5 text-primary" />
-                      ) : (
-                        <Check className="w-3.5 h-3.5 text-foreground/60" />
-                      )
+                    {isRead ? (
+                      <CheckCheck className="w-3.5 h-3.5 text-blue-600" />
+                    ) : (
+                      <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60" />
                     )}
                   </div>
                 </div>
