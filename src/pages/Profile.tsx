@@ -68,11 +68,11 @@ export default function Profile() {
       return;
     }
 
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         title: 'File too large',
-        description: 'Please select an image under 2MB.',
+        description: 'Please select an image under 10MB.',
         variant: 'destructive',
       });
       return;
