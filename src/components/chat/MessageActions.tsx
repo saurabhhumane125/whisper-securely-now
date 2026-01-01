@@ -27,9 +27,10 @@ interface MessageActionsProps {
   createdAt: string;
   onUpdate: (newContent: string) => void;
   onDelete: () => void;
+  tableName?: 'messages' | 'group_messages';
 }
 
-export default function MessageActions({ messageId, content, createdAt, onUpdate, onDelete }: MessageActionsProps) {
+export default function MessageActions({ messageId, content, createdAt, onUpdate, onDelete, tableName = 'messages' }: MessageActionsProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
@@ -52,7 +53,7 @@ export default function MessageActions({ messageId, content, createdAt, onUpdate
 
     setLoading(true);
     const { error } = await supabase
-      .from('messages')
+      .from(tableName)
       .update({ content: editContent.trim(), edited_at: new Date().toISOString() })
       .eq('id', messageId);
 
@@ -74,7 +75,7 @@ export default function MessageActions({ messageId, content, createdAt, onUpdate
   const handleDelete = async () => {
     setLoading(true);
     const { error } = await supabase
-      .from('messages')
+      .from(tableName)
       .delete()
       .eq('id', messageId);
 

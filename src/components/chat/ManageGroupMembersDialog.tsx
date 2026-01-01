@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, UserMinus, UserPlus, Loader2, LogOut } from 'lucide-react';
+import { Users, UserMinus, UserPlus, Loader2, LogOut, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 interface Profile {
   id: string;
@@ -36,6 +36,7 @@ interface ManageGroupMembersDialogProps {
   createdBy: string;
   onMembersChanged: () => void;
   onLeaveGroup?: () => void;
+  onDeleteGroup?: () => void;
 }
 
 export default function ManageGroupMembersDialog({
@@ -46,6 +47,7 @@ export default function ManageGroupMembersDialog({
   createdBy,
   onMembersChanged,
   onLeaveGroup,
+  onDeleteGroup,
 }: ManageGroupMembersDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -56,6 +58,8 @@ export default function ManageGroupMembersDialog({
   const [removing, setRemoving] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isCreator = user?.id === createdBy;
 
@@ -238,6 +242,22 @@ export default function ManageGroupMembersDialog({
     }
   };
 
+  const handleDeleteGroup = async () => {
+    if (!user || !isCreator) return;
+    setDeleting(true);
+    await supabase.from('group_messages').delete().eq('group_id', groupId);
+    await supabase.from('group_members').delete().eq('group_id', groupId);
+    const { error } = await supabase.from('groups').delete().eq('id', groupId);
+    if (error) {
+      toast({ title: 'Error', description: 'Could not delete the group.', variant: 'destructive' });
+      setDeleting(false);
+    } else {
+      toast({ title: 'Group deleted', description: `"${groupName}" has been deleted.` });
+      onOpenChange(false);
+      onDeleteGroup?.();
+    }
+  };
+
   const toggleSelectToAdd = (userId: string) => {
     setSelectedToAdd((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -378,29 +398,26 @@ export default function ManageGroupMembersDialog({
         )}
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          {!isCreator && (
-            <Button
-              variant="destructive"
-              onClick={handleLeaveGroup}
-              disabled={leaving}
-              className="w-full sm:w-auto"
-            >
-              {leaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Leaving...
-                </>
-              ) : (
-                <>
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Leave Group
-                </>
-              )}
+          {isCreator && !showDeleteConfirm && (
+            <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)} className="w-full sm:w-auto">
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Group
             </Button>
           )}
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
+          {isCreator && showDeleteConfirm && (
+            <div className="flex gap-2 w-full sm:w-auto">
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="flex-1">Cancel</Button>
+              <Button variant="destructive" onClick={handleDeleteGroup} disabled={deleting} className="flex-1">
+                {deleting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Deleting...</> : 'Confirm Delete'}
+              </Button>
+            </div>
+          )}
+          {!isCreator && (
+            <Button variant="destructive" onClick={handleLeaveGroup} disabled={leaving} className="w-full sm:w-auto">
+              {leaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Leaving...</> : <><LogOut className="w-4 h-4 mr-2" />Leave Group</>}
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
