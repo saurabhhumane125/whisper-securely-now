@@ -3,9 +3,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, ArrowLeft, Users } from 'lucide-react';
+import { Send, ArrowLeft, Users, Settings } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
+import ManageGroupMembersDialog from './ManageGroupMembersDialog';
 
 interface GroupMessage {
   id: string;
@@ -32,6 +33,8 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [memberCount, setMemberCount] = useState(0);
+  const [createdBy, setCreatedBy] = useState<string>('');
+  const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -72,17 +75,27 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
       setLoading(false);
     };
 
-    const fetchMemberCount = async () => {
+    const fetchGroupInfo = async () => {
       const { count } = await supabase
         .from('group_members')
         .select('*', { count: 'exact', head: true })
         .eq('group_id', groupId);
 
       setMemberCount(count || 0);
+
+      const { data: group } = await supabase
+        .from('groups')
+        .select('created_by')
+        .eq('id', groupId)
+        .maybeSingle();
+
+      if (group) {
+        setCreatedBy(group.created_by);
+      }
     };
 
     fetchMessages();
-    fetchMemberCount();
+    fetchGroupInfo();
 
     // Subscribe to new messages
     const channel = supabase
@@ -168,6 +181,15 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
     setSending(false);
   };
 
+  const handleMembersChanged = async () => {
+    const { count } = await supabase
+      .from('group_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId);
+
+    setMemberCount(count || 0);
+  };
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -178,13 +200,30 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
           <Users className="w-5 h-5 text-primary" />
         </div>
-        <div>
+        <div className="flex-1">
           <p className="font-medium text-foreground">{groupName}</p>
           <p className="text-xs text-muted-foreground">
             {memberCount} member{memberCount !== 1 ? 's' : ''}
           </p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setManageMembersOpen(true)}
+          title="Manage members"
+        >
+          <Settings className="w-5 h-5" />
+        </Button>
       </div>
+
+      <ManageGroupMembersDialog
+        open={manageMembersOpen}
+        onOpenChange={setManageMembersOpen}
+        groupId={groupId}
+        groupName={groupName}
+        createdBy={createdBy}
+        onMembersChanged={handleMembersChanged}
+      />
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 chat-scrollbar">
