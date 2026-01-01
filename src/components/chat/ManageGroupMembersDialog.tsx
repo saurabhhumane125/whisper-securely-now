@@ -13,9 +13,8 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, UserMinus, UserPlus, Loader2 } from 'lucide-react';
+import { Users, UserMinus, UserPlus, Loader2, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
 interface Profile {
   id: string;
   display_name: string;
@@ -36,6 +35,7 @@ interface ManageGroupMembersDialogProps {
   groupName: string;
   createdBy: string;
   onMembersChanged: () => void;
+  onLeaveGroup?: () => void;
 }
 
 export default function ManageGroupMembersDialog({
@@ -45,6 +45,7 @@ export default function ManageGroupMembersDialog({
   groupName,
   createdBy,
   onMembersChanged,
+  onLeaveGroup,
 }: ManageGroupMembersDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,6 +55,7 @@ export default function ManageGroupMembersDialog({
   const [loading, setLoading] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   const isCreator = user?.id === createdBy;
 
@@ -207,6 +209,35 @@ export default function ManageGroupMembersDialog({
     setAdding(false);
   };
 
+  const handleLeaveGroup = async () => {
+    if (!user || isCreator) return;
+
+    setLeaving(true);
+
+    const { error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', user.id);
+
+    if (error) {
+      console.error('Failed to leave group:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not leave the group.',
+        variant: 'destructive',
+      });
+      setLeaving(false);
+    } else {
+      toast({
+        title: 'Left group',
+        description: `You have left "${groupName}".`,
+      });
+      onOpenChange(false);
+      onLeaveGroup?.();
+    }
+  };
+
   const toggleSelectToAdd = (userId: string) => {
     setSelectedToAdd((prev) =>
       prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
@@ -346,7 +377,27 @@ export default function ManageGroupMembersDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {!isCreator && (
+            <Button
+              variant="destructive"
+              onClick={handleLeaveGroup}
+              disabled={leaving}
+              className="w-full sm:w-auto"
+            >
+              {leaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Leaving...
+                </>
+              ) : (
+                <>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Leave Group
+                </>
+              )}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
