@@ -223,6 +223,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
         groupName={groupName}
         createdBy={createdBy}
         onMembersChanged={handleMembersChanged}
+        onLeaveGroup={onBack}
       />
 
       {/* Messages */}
