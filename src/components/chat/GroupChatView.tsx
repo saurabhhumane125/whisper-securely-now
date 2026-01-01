@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Send, ArrowLeft, Users, Settings } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
 import ManageGroupMembersDialog from './ManageGroupMembersDialog';
+import TypingIndicator from './TypingIndicator';
 
 interface GroupMessage {
   id: string;
@@ -36,6 +38,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
   const [createdBy, setCreatedBy] = useState<string>('');
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`group:${groupId}`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -224,6 +227,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
         createdBy={createdBy}
         onMembersChanged={handleMembersChanged}
         onLeaveGroup={onBack}
+        onDeleteGroup={onBack}
       />
 
       {/* Messages */}
@@ -266,6 +270,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
                         onDelete={() => {
                           setMessages((prev) => prev.filter((m) => m.id !== msg.id));
                         }}
+                        tableName="group_messages"
                       />
                     )}
                   </div>
@@ -277,13 +282,20 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      <TypingIndicator typingUsers={typingUsers} />
+
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
         <div className="flex gap-2">
           <Input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              if (e.target.value.trim()) startTyping(user?.email?.split('@')[0] || 'Someone');
+            }}
+            onBlur={stopTyping}
             placeholder="Type a message..."
             className="flex-1 bg-input border-border focus:ring-primary"
             maxLength={2000}

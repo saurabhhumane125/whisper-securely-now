@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Send, ArrowLeft, User, Check, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
+import TypingIndicator from './TypingIndicator';
 
 interface Message {
   id: string;
@@ -34,6 +36,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
   const [isOnline, setIsOnline] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`conv:${conversationId}`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -289,13 +292,20 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      <TypingIndicator typingUsers={typingUsers} />
+
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
         <div className="flex gap-2">
           <Input
             type="text"
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={(e) => {
+              setNewMessage(e.target.value);
+              if (e.target.value.trim()) startTyping(otherUserName);
+            }}
+            onBlur={stopTyping}
             placeholder="Type a message..."
             className="flex-1 bg-input border-border focus:ring-primary"
             maxLength={2000}
