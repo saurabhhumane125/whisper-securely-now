@@ -11,7 +11,8 @@ import ChatView from '@/components/chat/ChatView';
 import GroupList from '@/components/chat/GroupList';
 import GroupChatView from '@/components/chat/GroupChatView';
 import CreateGroupDialog from '@/components/chat/CreateGroupDialog';
-import { Shield, LogOut, Search, MessageSquare, X, User, Users, Plus } from 'lucide-react';
+import MessageSearch from '@/components/chat/MessageSearch';
+import { Shield, LogOut, Search, MessageSquare, X, User, Users, Plus, FileSearch } from 'lucide-react';
 
 export default function Chat() {
   const { user, loading, signOut } = useAuth();
@@ -27,7 +28,8 @@ export default function Chat() {
     id: string;
     name: string;
   } | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
+  const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [activeTab, setActiveTab] = useState('chats');
 
@@ -65,7 +67,8 @@ export default function Chat() {
         otherUserName: displayName,
         otherUserId: userId,
       });
-      setShowSearch(false);
+      setShowUserSearch(false);
+      setShowMessageSearch(false);
     } catch (err) {
       console.error('Conversation error:', err);
       toast({
@@ -120,10 +123,26 @@ export default function Chat() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setShowSearch(!showSearch)}
+            onClick={() => {
+              setShowUserSearch(!showUserSearch);
+              setShowMessageSearch(false);
+            }}
             className="text-muted-foreground hover:text-foreground"
+            title="Find users"
           >
-            {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+            {showUserSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setShowMessageSearch(!showMessageSearch);
+              setShowUserSearch(false);
+            }}
+            className="text-muted-foreground hover:text-foreground"
+            title="Search messages"
+          >
+            {showMessageSearch ? <X className="w-5 h-5" /> : <FileSearch className="w-5 h-5" />}
           </Button>
           <Button
             variant="ghost"
@@ -152,8 +171,16 @@ export default function Chat() {
             hasSelection ? 'hidden md:flex' : 'flex'
           }`}
         >
-          {showSearch ? (
+          {showUserSearch ? (
             <UserSearch onSelectUser={handleSelectUser} />
+          ) : showMessageSearch ? (
+            <MessageSearch
+              onSelectResult={(conversationId, otherUserName, otherUserId) => {
+                handleSelectConversation(conversationId, otherUserName, otherUserId);
+                setShowMessageSearch(false);
+              }}
+              onClose={() => setShowMessageSearch(false)}
+            />
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
               <div className="p-4 border-b border-border">
