@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, ArrowLeft, Users, Settings } from 'lucide-react';
+import { Send, ArrowLeft, Users, Settings, Reply } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
 import ManageGroupMembersDialog from './ManageGroupMembersDialog';
@@ -12,6 +12,8 @@ import TypingIndicator from './TypingIndicator';
 import FileUpload from './FileUpload';
 import MessageContent from './MessageContent';
 import MessageReactions from './MessageReactions';
+import ReplyPreview from './ReplyPreview';
+import QuotedMessage from './QuotedMessage';
 
 interface GroupMessage {
   id: string;
@@ -21,6 +23,7 @@ interface GroupMessage {
   edited_at: string | null;
   file_url: string | null;
   file_type: string | null;
+  reply_to_id: string | null;
   sender?: {
     display_name: string;
     avatar_url: string | null;
@@ -43,11 +46,22 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
   const [createdBy, setCreatedBy] = useState<string>('');
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<{ url: string; type: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string; senderName: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`group:${groupId}`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const element = messageRefs.current.get(messageId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('bg-primary/10');
+      setTimeout(() => element.classList.remove('bg-primary/10'), 1500);
+    }
   };
 
   useEffect(() => {
@@ -185,6 +199,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
       content,
       file_url: fileData?.url || null,
       file_type: fileData?.type || null,
+      reply_to_id: replyTo?.id || null,
     });
 
     if (error) {
@@ -193,6 +208,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
       setPendingFile(fileData);
     }
 
+    setReplyTo(null);
     setSending(false);
   };
 
@@ -202,6 +218,16 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
     } else {
       setPendingFile(null);
     }
+  };
+
+  const handleReply = (msg: GroupMessage) => {
+    const senderName = msg.sender_id === user?.id ? 'yourself' : (msg.sender?.display_name || 'Unknown');
+    setReplyTo({ id: msg.id, content: msg.content, senderName });
+  };
+
+  const getReplyMessage = (replyToId: string | null) => {
+    if (!replyToId) return null;
+    return messages.find((m) => m.id === replyToId);
   };
 
   const handleMembersChanged = async () => {
@@ -264,12 +290,24 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
         ) : (
           messages.map((msg) => {
             const isSent = msg.sender_id === user?.id;
+            const replyMessage = getReplyMessage(msg.reply_to_id);
 
             return (
-              <div key={msg.id} className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+              <div 
+                key={msg.id} 
+                ref={(el) => el && messageRefs.current.set(msg.id, el)}
+                className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in transition-colors duration-300`}
+              >
                 <div className={`max-w-[75%] group ${isSent ? 'message-bubble-sent' : 'message-bubble-received'}`}>
                   {!isSent && (
                     <p className="text-xs font-medium text-primary mb-1">{msg.sender?.display_name}</p>
+                  )}
+                  {replyMessage && (
+                    <QuotedMessage
+                      senderName={replyMessage.sender_id === user?.id ? 'You' : (replyMessage.sender?.display_name || 'Unknown')}
+                      content={replyMessage.content}
+                      onClick={() => scrollToMessage(replyMessage.id)}
+                    />
                   )}
                   <MessageContent content={msg.content} fileUrl={msg.file_url} fileType={msg.file_type} />
                   <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : ''}`}>
@@ -277,6 +315,14 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                       {msg.edited_at && ' (edited)'}
                     </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleReply(msg)}
+                    >
+                      <Reply className="w-3.5 h-3.5" />
+                    </Button>
                     {isSent && (
                       <MessageActions
                         messageId={msg.id}
@@ -305,6 +351,11 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
 
       {/* Typing Indicator */}
       <TypingIndicator typingUsers={typingUsers} />
+
+      {/* Reply Preview */}
+      {replyTo && (
+        <ReplyPreview replyTo={replyTo} onClear={() => setReplyTo(null)} />
+      )}
 
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">

@@ -123,6 +123,7 @@ export type Database = {
           file_url: string | null
           group_id: string
           id: string
+          reply_to_id: string | null
           sender_id: string
         }
         Insert: {
@@ -133,6 +134,7 @@ export type Database = {
           file_url?: string | null
           group_id: string
           id?: string
+          reply_to_id?: string | null
           sender_id: string
         }
         Update: {
@@ -143,6 +145,7 @@ export type Database = {
           file_url?: string | null
           group_id?: string
           id?: string
+          reply_to_id?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -151,6 +154,13 @@ export type Database = {
             columns: ["group_id"]
             isOneToOne: false
             referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "group_messages"
             referencedColumns: ["id"]
           },
         ]
@@ -224,6 +234,7 @@ export type Database = {
           file_url: string | null
           id: string
           read_at: string | null
+          reply_to_id: string | null
           sender_id: string
         }
         Insert: {
@@ -235,6 +246,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           read_at?: string | null
+          reply_to_id?: string | null
           sender_id: string
         }
         Update: {
@@ -246,6 +258,7 @@ export type Database = {
           file_url?: string | null
           id?: string
           read_at?: string | null
+          reply_to_id?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -254,6 +267,13 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_reply_to_id_fkey"
+            columns: ["reply_to_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {
@@ -301,6 +321,18 @@ export type Database = {
       mark_messages_read: {
         Args: { p_conversation_id: string }
         Returns: undefined
+      }
+      search_messages: {
+        Args: { search_query: string }
+        Returns: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          other_user_id: string
+          other_user_name: string
+          sender_id: string
+        }[]
       }
       search_users: {
         Args: { search_query: string }

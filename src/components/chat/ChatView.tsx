@@ -5,13 +5,15 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Send, ArrowLeft, User, CheckCheck } from 'lucide-react';
+import { Send, ArrowLeft, User, CheckCheck, Reply } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
 import TypingIndicator from './TypingIndicator';
 import FileUpload from './FileUpload';
 import MessageContent from './MessageContent';
 import MessageReactions from './MessageReactions';
+import ReplyPreview from './ReplyPreview';
+import QuotedMessage from './QuotedMessage';
 
 interface Message {
   id: string;
@@ -22,6 +24,7 @@ interface Message {
   edited_at: string | null;
   file_url: string | null;
   file_type: string | null;
+  reply_to_id: string | null;
 }
 
 interface ChatViewProps {
@@ -41,11 +44,22 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
   const [isOnline, setIsOnline] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<{ url: string; type: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string; senderName: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`conv:${conversationId}`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const element = messageRefs.current.get(messageId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      element.classList.add('bg-primary/10');
+      setTimeout(() => element.classList.remove('bg-primary/10'), 1500);
+    }
   };
 
   useEffect(() => {
@@ -188,6 +202,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
       content,
       file_url: fileData?.url || null,
       file_type: fileData?.type || null,
+      reply_to_id: replyTo?.id || null,
     });
 
     if (error) {
@@ -196,6 +211,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
       setPendingFile(fileData);
     }
 
+    setReplyTo(null);
     setSending(false);
   };
 
@@ -205,6 +221,16 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
     } else {
       setPendingFile(null);
     }
+  };
+
+  const handleReply = (msg: Message) => {
+    const senderName = msg.sender_id === user?.id ? 'yourself' : otherUserName;
+    setReplyTo({ id: msg.id, content: msg.content, senderName });
+  };
+
+  const getReplyMessage = (replyToId: string | null) => {
+    if (!replyToId) return null;
+    return messages.find((m) => m.id === replyToId);
   };
 
   return (
@@ -270,13 +296,22 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
           messages.map((msg) => {
             const isSent = msg.sender_id === user?.id;
             const isRead = !!msg.read_at;
+            const replyMessage = getReplyMessage(msg.reply_to_id);
             
             return (
               <div
                 key={msg.id}
-                className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in`}
+                ref={(el) => el && messageRefs.current.set(msg.id, el)}
+                className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in transition-colors duration-300`}
               >
                 <div className={`max-w-[75%] group ${isSent ? 'message-bubble-sent' : 'message-bubble-received'}`}>
+                  {replyMessage && (
+                    <QuotedMessage
+                      senderName={replyMessage.sender_id === user?.id ? 'You' : otherUserName}
+                      content={replyMessage.content}
+                      onClick={() => scrollToMessage(replyMessage.id)}
+                    />
+                  )}
                   <MessageContent content={msg.content} fileUrl={msg.file_url} fileType={msg.file_type} />
                   <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : ''}`}>
                     <p className={`text-xs ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
@@ -288,6 +323,14 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
                     ) : (
                       <CheckCheck className="w-3.5 h-3.5 text-muted-foreground/60" />
                     )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleReply(msg)}
+                    >
+                      <Reply className="w-3.5 h-3.5" />
+                    </Button>
                     {isSent && (
                       <MessageActions
                         messageId={msg.id}
@@ -315,6 +358,11 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
 
       {/* Typing Indicator */}
       <TypingIndicator typingUsers={typingUsers} />
+
+      {/* Reply Preview */}
+      {replyTo && (
+        <ReplyPreview replyTo={replyTo} onClear={() => setReplyTo(null)} />
+      )}
 
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
