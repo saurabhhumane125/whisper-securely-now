@@ -9,6 +9,9 @@ import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
 import ManageGroupMembersDialog from './ManageGroupMembersDialog';
 import TypingIndicator from './TypingIndicator';
+import FileUpload from './FileUpload';
+import MessageContent from './MessageContent';
+import MessageReactions from './MessageReactions';
 
 interface GroupMessage {
   id: string;
@@ -16,6 +19,8 @@ interface GroupMessage {
   content: string;
   created_at: string;
   edited_at: string | null;
+  file_url: string | null;
+  file_type: string | null;
   sender?: {
     display_name: string;
     avatar_url: string | null;
@@ -37,6 +42,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
   const [memberCount, setMemberCount] = useState(0);
   const [createdBy, setCreatedBy] = useState<string>('');
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<{ url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`group:${groupId}`);
 
@@ -162,26 +168,40 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !user || sending) return;
+    const hasContent = newMessage.trim() || pendingFile?.url;
+    if (!hasContent || !user || sending) return;
 
     const content = newMessage.trim();
     if (content.length > 2000) return;
 
     setSending(true);
     setNewMessage('');
+    const fileData = pendingFile;
+    setPendingFile(null);
 
     const { error } = await supabase.from('group_messages').insert({
       group_id: groupId,
       sender_id: user.id,
       content,
+      file_url: fileData?.url || null,
+      file_type: fileData?.type || null,
     });
 
     if (error) {
       console.error('Failed to send message:', error);
       setNewMessage(content);
+      setPendingFile(fileData);
     }
 
     setSending(false);
+  };
+
+  const handleFileUploaded = (fileUrl: string, fileType: string) => {
+    if (fileUrl) {
+      setPendingFile({ url: fileUrl, type: fileType });
+    } else {
+      setPendingFile(null);
+    }
   };
 
   const handleMembersChanged = async () => {
@@ -251,7 +271,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
                   {!isSent && (
                     <p className="text-xs font-medium text-primary mb-1">{msg.sender?.display_name}</p>
                   )}
-                  <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                  <MessageContent content={msg.content} fileUrl={msg.file_url} fileType={msg.file_type} />
                   <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : ''}`}>
                     <p className={`text-xs ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
@@ -274,6 +294,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
                       />
                     )}
                   </div>
+                  <MessageReactions messageId={msg.id} tableName="group_message_reactions" />
                 </div>
               </div>
             );
@@ -287,7 +308,8 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
 
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <FileUpload onFileUploaded={handleFileUploaded} disabled={sending} />
           <Input
             type="text"
             value={newMessage}
@@ -301,7 +323,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
             maxLength={2000}
             disabled={sending}
           />
-          <Button type="submit" size="icon" disabled={!newMessage.trim() || sending} className="bg-primary hover:bg-primary/90">
+          <Button type="submit" size="icon" disabled={(!newMessage.trim() && !pendingFile) || sending} className="bg-primary hover:bg-primary/90">
             <Send className="w-4 h-4" />
           </Button>
         </div>
