@@ -5,10 +5,13 @@ import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Send, ArrowLeft, User, Check, CheckCheck } from 'lucide-react';
+import { Send, ArrowLeft, User, CheckCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import MessageActions from './MessageActions';
 import TypingIndicator from './TypingIndicator';
+import FileUpload from './FileUpload';
+import MessageContent from './MessageContent';
+import MessageReactions from './MessageReactions';
 
 interface Message {
   id: string;
@@ -17,6 +20,8 @@ interface Message {
   created_at: string;
   read_at: string | null;
   edited_at: string | null;
+  file_url: string | null;
+  file_type: string | null;
 }
 
 interface ChatViewProps {
@@ -35,6 +40,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<{ url: string; type: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { typingUsers, startTyping, stopTyping } = useTypingIndicator(`conv:${conversationId}`);
 
@@ -163,7 +169,8 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!newMessage.trim() || !user || sending) return;
+    const hasContent = newMessage.trim() || pendingFile?.url;
+    if (!hasContent || !user || sending) return;
 
     const content = newMessage.trim();
     if (content.length > 2000) {
@@ -172,19 +179,32 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
 
     setSending(true);
     setNewMessage('');
+    const fileData = pendingFile;
+    setPendingFile(null);
 
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: user.id,
       content,
+      file_url: fileData?.url || null,
+      file_type: fileData?.type || null,
     });
 
     if (error) {
       console.error('Failed to send message:', error);
-      setNewMessage(content); // Restore message on error
+      setNewMessage(content);
+      setPendingFile(fileData);
     }
 
     setSending(false);
+  };
+
+  const handleFileUploaded = (fileUrl: string, fileType: string) => {
+    if (fileUrl) {
+      setPendingFile({ url: fileUrl, type: fileType });
+    } else {
+      setPendingFile(null);
+    }
   };
 
   return (
@@ -257,7 +277,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
                 className={`flex ${isSent ? 'justify-end' : 'justify-start'} animate-fade-in`}
               >
                 <div className={`max-w-[75%] group ${isSent ? 'message-bubble-sent' : 'message-bubble-received'}`}>
-                  <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                  <MessageContent content={msg.content} fileUrl={msg.file_url} fileType={msg.file_type} />
                   <div className={`flex items-center gap-1 mt-1 ${isSent ? 'justify-end' : ''}`}>
                     <p className={`text-xs ${isSent ? 'text-foreground/60' : 'text-muted-foreground'}`}>
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
@@ -284,6 +304,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
                       />
                     )}
                   </div>
+                  <MessageReactions messageId={msg.id} tableName="message_reactions" />
                 </div>
               </div>
             );
@@ -297,7 +318,8 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
 
       {/* Message Input */}
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <FileUpload onFileUploaded={handleFileUploaded} disabled={sending} />
           <Input
             type="text"
             value={newMessage}
@@ -314,7 +336,7 @@ export default function ChatView({ conversationId, otherUserName, otherUserId, o
           <Button
             type="submit"
             size="icon"
-            disabled={!newMessage.trim() || sending}
+            disabled={(!newMessage.trim() && !pendingFile) || sending}
             className="bg-primary hover:bg-primary/90"
           >
             <Send className="w-4 h-4" />
