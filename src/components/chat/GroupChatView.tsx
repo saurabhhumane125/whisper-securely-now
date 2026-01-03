@@ -14,6 +14,7 @@ import MessageContent from './MessageContent';
 import MessageReactions from './MessageReactions';
 import ReplyPreview from './ReplyPreview';
 import QuotedMessage from './QuotedMessage';
+import VoiceRecorder from './VoiceRecorder';
 
 interface GroupMessage {
   id: string;
@@ -328,6 +329,8 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
                         messageId={msg.id}
                         content={msg.content}
                         createdAt={msg.created_at}
+                        fileUrl={msg.file_url}
+                        fileType={msg.file_type}
                         onUpdate={(newContent) => {
                           setMessages((prev) =>
                             prev.map((m) => (m.id === msg.id ? { ...m, content: newContent, edited_at: new Date().toISOString() } : m))
@@ -361,6 +364,7 @@ export default function GroupChatView({ groupId, groupName, onBack }: GroupChatV
       <form onSubmit={handleSend} className="p-4 border-t border-border bg-card">
         <div className="flex items-center gap-2">
           <FileUpload onFileUploaded={handleFileUploaded} disabled={sending} />
+          <VoiceRecorder onRecordingComplete={handleFileUploaded} disabled={sending} />
           <Input
             type="text"
             value={newMessage}
