@@ -18,23 +18,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, Forward } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import ForwardMessageDialog from './ForwardMessageDialog';
 
 interface MessageActionsProps {
   messageId: string;
   content: string;
   createdAt: string;
+  fileUrl?: string | null;
+  fileType?: string | null;
   onUpdate: (newContent: string) => void;
   onDelete: () => void;
   tableName?: 'messages' | 'group_messages';
 }
 
-export default function MessageActions({ messageId, content, createdAt, onUpdate, onDelete, tableName = 'messages' }: MessageActionsProps) {
+export default function MessageActions({ messageId, content, createdAt, fileUrl, fileType, onUpdate, onDelete, tableName = 'messages' }: MessageActionsProps) {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(content);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const canEdit = () => {
@@ -140,6 +144,10 @@ export default function MessageActions({ messageId, content, createdAt, onUpdate
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => setShowForwardDialog(true)}>
+            <Forward className="w-4 h-4 mr-2" />
+            Forward
+          </DropdownMenuItem>
           {canEdit() && (
             <DropdownMenuItem onClick={() => setIsEditing(true)}>
               <Pencil className="w-4 h-4 mr-2" />
@@ -169,6 +177,14 @@ export default function MessageActions({ messageId, content, createdAt, onUpdate
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ForwardMessageDialog
+        open={showForwardDialog}
+        onOpenChange={setShowForwardDialog}
+        messageContent={content}
+        fileUrl={fileUrl}
+        fileType={fileType}
+      />
     </>
   );
 }

@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { File, Download } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
+import { File, Download, Play, Pause, Volume2 } from 'lucide-react';
 
 interface MessageContentProps {
   content: string;
@@ -10,16 +12,61 @@ interface MessageContentProps {
 
 export default function MessageContent({ content, fileUrl, fileType }: MessageContentProps) {
   const [imageOpen, setImageOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const getFileName = (url: string) => {
     const parts = url.split('/');
     const filename = parts[parts.length - 1];
-    // Remove timestamp prefix
     const nameParts = filename.split('.');
     if (nameParts.length > 1) {
       return `file.${nameParts[nameParts.length - 1]}`;
     }
     return filename;
+  };
+
+  const formatTime = (seconds: number) => {
+    if (isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const togglePlayback = () => {
+    if (!audioRef.current) return;
+    
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+  };
+
+  const handleSeek = (value: number[]) => {
+    if (audioRef.current) {
+      audioRef.current.currentTime = value[0];
+      setCurrentTime(value[0]);
+    }
   };
 
   return (
@@ -42,6 +89,44 @@ export default function MessageContent({ content, fileUrl, fileType }: MessageCo
             </DialogContent>
           </Dialog>
         </>
+      )}
+
+      {fileUrl && fileType === 'audio' && (
+        <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg min-w-48">
+          <audio
+            ref={audioRef}
+            src={fileUrl}
+            onTimeUpdate={handleTimeUpdate}
+            onLoadedMetadata={handleLoadedMetadata}
+            onEnded={handleEnded}
+          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={togglePlayback}
+          >
+            {isPlaying ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+          </Button>
+          <div className="flex-1 flex items-center gap-2">
+            <Slider
+              value={[currentTime]}
+              min={0}
+              max={duration || 100}
+              step={0.1}
+              onValueChange={handleSeek}
+              className="flex-1"
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+          </div>
+          <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
+        </div>
       )}
 
       {fileUrl && fileType === 'file' && (
