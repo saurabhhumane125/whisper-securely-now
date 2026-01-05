@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
-import { File, Download, Play, Pause, Volume2 } from 'lucide-react';
+import { File, Download, Play, Pause, Volume2, Loader2 } from 'lucide-react';
+import { useSignedUrl } from '@/hooks/useSignedUrl';
 
 interface MessageContentProps {
   content: string;
@@ -16,6 +17,12 @@ export default function MessageContent({ content, fileUrl, fileType }: MessageCo
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Get signed URL for file access
+  const { signedUrl, loading: urlLoading } = useSignedUrl({
+    bucket: 'chat-files',
+    path: fileUrl,
+  });
 
   const getFileName = (url: string) => {
     const parts = url.split('/');
@@ -73,73 +80,94 @@ export default function MessageContent({ content, fileUrl, fileType }: MessageCo
     <div className="space-y-2">
       {fileUrl && fileType === 'image' && (
         <>
-          <img
-            src={fileUrl}
-            alt="Shared image"
-            className="max-w-full max-h-60 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setImageOpen(true)}
-          />
-          <Dialog open={imageOpen} onOpenChange={setImageOpen}>
-            <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
+          {urlLoading ? (
+            <div className="w-40 h-40 flex items-center justify-center bg-muted/50 rounded-lg">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : signedUrl ? (
+            <>
               <img
-                src={fileUrl}
+                src={signedUrl}
                 alt="Shared image"
-                className="w-full h-auto rounded-lg object-contain max-h-[85vh]"
+                className="max-w-full max-h-60 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => setImageOpen(true)}
               />
-            </DialogContent>
-          </Dialog>
+              <Dialog open={imageOpen} onOpenChange={setImageOpen}>
+                <DialogContent className="max-w-4xl p-0 overflow-hidden bg-transparent border-none">
+                  <img
+                    src={signedUrl}
+                    alt="Shared image"
+                    className="w-full h-auto rounded-lg object-contain max-h-[85vh]"
+                  />
+                </DialogContent>
+              </Dialog>
+            </>
+          ) : null}
         </>
       )}
 
       {fileUrl && fileType === 'audio' && (
         <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg min-w-48">
-          <audio
-            ref={audioRef}
-            src={fileUrl}
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onEnded={handleEnded}
-          />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={togglePlayback}
-          >
-            {isPlaying ? (
-              <Pause className="w-4 h-4" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
-          </Button>
-          <div className="flex-1 flex items-center gap-2">
-            <Slider
-              value={[currentTime]}
-              min={0}
-              max={duration || 100}
-              step={0.1}
-              onValueChange={handleSeek}
-              className="flex-1"
-            />
-            <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          </div>
-          <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
+          {urlLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+          ) : signedUrl ? (
+            <>
+              <audio
+                ref={audioRef}
+                src={signedUrl}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={handleEnded}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={togglePlayback}
+              >
+                {isPlaying ? (
+                  <Pause className="w-4 h-4" />
+                ) : (
+                  <Play className="w-4 h-4" />
+                )}
+              </Button>
+              <div className="flex-1 flex items-center gap-2">
+                <Slider
+                  value={[currentTime]}
+                  min={0}
+                  max={duration || 100}
+                  step={0.1}
+                  onValueChange={handleSeek}
+                  className="flex-1"
+                />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {formatTime(currentTime)} / {formatTime(duration)}
+                </span>
+              </div>
+              <Volume2 className="w-4 h-4 text-muted-foreground shrink-0" />
+            </>
+          ) : null}
         </div>
       )}
 
       {fileUrl && fileType === 'file' && (
-        <a
-          href={fileUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
-        >
-          <File className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm flex-1 truncate">{getFileName(fileUrl)}</span>
-          <Download className="w-4 h-4 text-muted-foreground" />
-        </a>
+        urlLoading ? (
+          <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Loading file...</span>
+          </div>
+        ) : signedUrl ? (
+          <a
+            href={signedUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
+          >
+            <File className="w-5 h-5 text-muted-foreground" />
+            <span className="text-sm flex-1 truncate">{getFileName(fileUrl)}</span>
+            <Download className="w-4 h-4 text-muted-foreground" />
+          </a>
+        ) : null
       )}
 
       {content && (
