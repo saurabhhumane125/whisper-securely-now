@@ -34,7 +34,22 @@ export default function Profile() {
         console.error('Failed to fetch profile:', error);
       } else if (data) {
         setDisplayName(data.display_name || '');
-        setAvatarUrl(data.avatar_url);
+        
+        // Get signed URL for avatar if it exists
+        if (data.avatar_url) {
+          // Handle legacy full URLs vs new file paths
+          if (data.avatar_url.startsWith('http://') || data.avatar_url.startsWith('https://')) {
+            setAvatarUrl(data.avatar_url);
+          } else {
+            const { data: signedData } = await supabase.storage
+              .from('avatars')
+              .createSignedUrl(data.avatar_url, 3600);
+            
+            if (signedData?.signedUrl) {
+              setAvatarUrl(signedData.signedUrl);
+            }
+          }
+        }
       }
       setLoadingProfile(false);
     };
@@ -91,22 +106,24 @@ export default function Profile() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
-
-      const newAvatarUrl = urlData.publicUrl;
-
-      // Update profile
+      // Store file path for later signed URL generation
+      // Update profile with file path
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: newAvatarUrl })
+        .update({ avatar_url: filePath })
         .eq('id', user.id);
 
       if (updateError) throw updateError;
 
-      setAvatarUrl(newAvatarUrl);
+      // Get signed URL for display
+      const { data: signedData } = await supabase.storage
+        .from('avatars')
+        .createSignedUrl(filePath, 3600);
+
+      if (signedData?.signedUrl) {
+        setAvatarUrl(signedData.signedUrl);
+      }
+      
       toast({
         title: 'Success',
         description: 'Profile photo updated!',

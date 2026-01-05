@@ -92,11 +92,8 @@ export default function VoiceRecorder({ onRecordingComplete, disabled }: VoiceRe
         throw uploadError;
       }
 
-      const { data: urlData } = supabase.storage
-        .from('chat-files')
-        .getPublicUrl(filePath);
-
-      onRecordingComplete(urlData.publicUrl, 'audio');
+      // Store file path instead of full URL for message storage
+      onRecordingComplete(filePath, 'audio');
       setRecordingTime(0);
     } catch (error) {
       console.error('Failed to upload recording:', error);

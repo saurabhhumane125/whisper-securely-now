@@ -43,19 +43,23 @@ export default function FileUpload({ onFileUploaded, disabled }: FileUploadProps
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      // Use signed URL for private bucket (1 hour expiry)
+      const { data: signedData, error: signError } = await supabase.storage
         .from('chat-files')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 3600);
+
+      if (signError || !signedData?.signedUrl) throw signError || new Error('Failed to create signed URL');
 
       const fileType = file.type.startsWith('image/') ? 'image' : 'file';
       
       setPreview({
-        url: publicUrl,
+        url: signedData.signedUrl,
         type: fileType,
         name: file.name,
       });
       
-      onFileUploaded(publicUrl, fileType);
+      // Store file path instead of full URL for message storage
+      onFileUploaded(fileName, fileType);
     } catch (error) {
       console.error('Upload error:', error);
       toast({
